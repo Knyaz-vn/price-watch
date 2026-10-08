@@ -1,0 +1,84 @@
+name: Порівняння цін
+
+on:
+  schedule:
+    - cron: "30 6 * * *"   # 09:30 за Києвом влітку, 08:30 взимку
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: price-watch
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Встановити залежності
+        run: pip install -r requirements.txt
+
+      - name: Порівняти ціни і зберегти історію
+        env:
+          MY_FEED_URL: ${{ secrets.MY_FEED_URL }}
+          SUPPLIER_FEED_URL: ${{ secrets.SUPPLIER_FEED_URL }}
+          SUPPLIER_URLS: ${{ secrets.SUPPLIER_URLS }}
+          FEED_PROXY: ${{ secrets.FEED_PROXY }}
+          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+          SITE_REPO: ${{ secrets.SITE_REPO }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            python compare.py
+            git add -A data docs mapping README.md report.xlsx
+            if git diff --cached --quiet; then
+              echo "Змін немає"
+              exit 0
+            fi
+            git commit -q -m "Ціни за $(TZ=Europe/Kyiv date +%F)"
+            if git push -q; then
+              exit 0
+            fi
+            echo "Під час запуску в репозиторії з'явились нові зміни, перераховую на свіжій версії"
+            export SKIP_TELEGRAM=1
+            git fetch -q origin "$GITHUB_REF_NAME"
+            git reset -q --hard "origin/$GITHUB_REF_NAME"
+          done
+          echo "Не вдалося зберегти результат після трьох спроб"
+          exit 1
+
+      - name: Опублікувати веб-версію
+        env:
+          SITE_REPO: ${{ secrets.SITE_REPO }}
+          SITE_TOKEN: ${{ secrets.SITE_TOKEN }}
+        run: |
+          if [ -z "$SITE_REPO" ] || [ -z "$SITE_TOKEN" ]; then
+            echo "Веб-версію не налаштовано, пропускаю"
+            exit 0
+          fi
+          if [ ! -f site/index.html ]; then
+            echo "Не задано секрет DASHBOARD_PASSWORD. Без пароля звіт не публікується."
+            exit 1
+          fi
+          repo=$(printf '%s' "$SITE_REPO" | sed -E 's#^https?://github.com/##; s#\.git$##; s#/+$##')
+          rm -rf publish && mkdir publish && cp site/index.html site/.nojekyll publish/
+          cd publish
+          git init -q -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Оновлення $(TZ=Europe/Kyiv date '+%F %H:%M')"
+          git push -q --force "https://x-access-token:${SITE_TOKEN}@github.com/${repo}.git" main
+          echo "Веб-версію оновлено"
