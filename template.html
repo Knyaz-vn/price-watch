@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Порівняння цін з постачальником</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1D2A22;
+    --muted: #5E6D62;
+    --line: #D8DFD5;
+    --paper: #F4F6F2;
+    --panel: #FFFFFF;
+    --red: #B8281C;
+    --red-bg: #FBEAE7;
+    --amber: #8F5500;
+    --amber-bg: #FCF2E1;
+    --leaf: #2E7D4F;
+    --focus: #2E62C9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 15px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .wrap { max-width: 1340px; margin: 0 auto; padding: 26px 24px 64px; }
+
+  .top { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 20px; }
+  .brand { font-weight: 600; }
+  .updated { color: var(--muted); font-size: 14px; }
+
+  h1 { font-size: 42px; line-height: 1.12; font-weight: 600; letter-spacing: -0.015em; margin: 26px 0 8px; max-width: 24ch; }
+  h1.alert { color: var(--red); }
+  .sub { color: var(--muted); margin: 0 0 22px; max-width: 78ch; }
+  .warn { border-left: 4px solid var(--amber); background: var(--amber-bg); padding: 10px 14px; margin: 0 0 18px; max-width: 90ch; }
+
+  .views { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+  .views button {
+    font: inherit; font-weight: 500; background: none; border: 0; color: var(--muted);
+    padding: 8px 0 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer;
+  }
+  .views button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .filters button {
+    font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .filters button b { font-weight: 600; margin-left: 6px; }
+  .filters button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .filters button.is-red b { color: var(--red); }
+  .filters button.is-red[aria-pressed="true"] { background: var(--red); border-color: var(--red); }
+  .filters button.is-red[aria-pressed="true"] b { color: #fff; }
+
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-bottom: 12px; }
+  .tools input[type="search"] {
+    font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; width: min(420px, 100%); background: var(--panel);
+  }
+  .tools label { color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .shown { color: var(--muted); font-size: 14px; margin-left: auto; }
+
+  .scroll { overflow: auto; max-height: 78vh; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th {
+    position: sticky; top: 0; z-index: 1; background: var(--panel); font-size: 13px; font-weight: 500;
+    color: var(--muted); vertical-align: bottom; line-height: 1.3; box-shadow: 0 1px 0 var(--line);
+  }
+  th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  th button[data-dir]::after { content: attr(data-dir); margin-left: 4px; }
+  .num { text-align: right; }
+  td.num { white-space: nowrap; }
+  tbody tr.red { background: var(--red-bg); }
+  tbody tr.red td:first-child { box-shadow: inset 4px 0 0 var(--red); }
+  tbody tr.orange { background: var(--amber-bg); }
+  tbody tr.orange td:first-child { box-shadow: inset 4px 0 0 var(--amber); }
+  td.item { min-width: 320px; max-width: 520px; }
+  .mname a, .sname a { text-decoration: none; border-bottom: 1px solid var(--line); }
+  .mname a:hover, .sname a:hover { border-bottom-color: currentColor; }
+  .mname { font-weight: 500; }
+  .sname, .ids, .small { font-size: 13px; color: var(--muted); }
+  .what { font-size: 13px; margin-top: 5px; }
+  tr.red .what { color: var(--red); font-weight: 500; }
+  tr.orange .what { color: var(--amber); font-weight: 500; }
+  .up { color: var(--red); }
+  .down { color: var(--leaf); }
+  .price { font-weight: 500; }
+  .out { color: var(--red); }
+  .best { color: var(--leaf); }
+  .nopair { color: var(--muted); }
+  .spark { display: block; }
+  .key { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; }
+  .key svg { vertical-align: middle; }
+  .empty { padding: 28px 16px; color: var(--muted); }
+  .note { color: var(--muted); max-width: 90ch; margin: 0 0 14px; }
+  .bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 12px; }
+  .bulk button {
+    font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--ink); background: var(--panel); color: var(--ink);
+  }
+  .bulk button:disabled { opacity: .45; cursor: default; }
+  .bulk label { display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); cursor: pointer; }
+  .bulk .status { font-size: 14px; color: var(--leaf); }
+  textarea.paste { width: 100%; min-height: 110px; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0 0 12px; }
+
+  footer { margin-top: 30px; color: var(--muted); font-size: 14px; max-width: 86ch; }
+  footer p { margin: 0 0 8px; }
+  footer strong { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 760px) {
+    .wrap { padding: 18px 12px 48px; }
+    h1 { font-size: 30px; }
+    .shown { margin-left: 0; }
+    td.item { min-width: 240px; }
+    .views { gap: 14px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .views::-webkit-scrollbar { display: none; }
+    .views button { font-size: 14px; white-space: nowrap; flex: none; }
+  }
+  @media (max-width: 420px) {
+    .views { gap: 12px; }
+    .views button { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand" id="brand"></div>
+    <div class="updated" id="updated"></div>
+  </div>
+  <h1 id="headline"></h1>
+  <p class="sub" id="sub"></p>
+  <div id="warnings"></div>
+
+  <div class="views" role="tablist" id="views"></div>
+
+  <section id="view-table">
+    <div class="filters" id="filters"></div>
+    <div class="tools">
+      <input type="search" id="q" placeholder="Пошук за назвою або ID" aria-label="Пошук за назвою або ID">
+      <label><input type="checkbox" id="onlyAvail"> Лише ті, що є в наявності хоча б в одного</label>
+      <span class="shown" id="shown"></span>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="view-log" hidden>
+    <p class="note" id="logNote"></p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Дата</th><th>Хто змінив</th><th>Товар</th><th class="num">Було</th><th class="num">Стало</th><th class="num">Зміна</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="view-sugg" hidden>
+    <p class="note" id="suggNote"></p>
+    <div class="bulk">
+      <label><input type="checkbox" id="selAll"> Вибрати всі</label>
+      <button type="button" id="copyYes" disabled>Скопіювати вибрані як «так»</button>
+      <button type="button" id="copyNo" disabled>Скопіювати вибрані як «ні»</button>
+      <span class="status" id="copyStatus" role="status"></span>
+    </div>
+    <textarea class="paste" id="pasteBox" hidden readonly aria-label="Рядки для mapping.csv"></textarea>
+    <div class="scroll">
+      <table>
+        <thead><tr><th></th><th class="num">Схожість</th><th>Постачальник</th><th>Ваш товар</th><th>Товар постачальника</th><th class="num">Ваша ціна</th><th class="num">Постачальник</th><th>Причина</th></tr></thead>
+        <tbody id="suggBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer id="legend"></footer>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+
+const nf = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 });
+const money = v => v == null ? '' : nf.format(v);
+const signed = (v, digits = 1) => v == null ? '' : (v > 0 ? '+' : v < 0 ? '−' : '') + nf.format(Math.abs(+v.toFixed(digits)));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; if (a > 10 && a < 20) return many; if (b === 1) return one; if (b >= 2 && b <= 4) return few; return many; };
+const dayNum = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 864e5;
+const dmy = s => s ? `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}` : '';
+const link = (url, text) => url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
+
+const C = D.counts;
+const state = { view: 'table', filter: C.attention ? 'attention' : 'all', q: '', onlyAvail: false, sort: null, dir: 1 };
+
+const SUPS = D.suppliers || [{ id: '', label: D.labels.sup }];
+const supName = id => (SUPS.find(s => s.id === id) || {}).label || id;
+const cellOf = (r, id) => r.cells.find(c => c.sup === id);
+
+const FILTERS = [
+  { id: 'attention', label: 'Потребують уваги', n: C.attention, test: r => r.sev === 'red', cls: 'is-red' },
+  { id: 'changed', label: 'Постачальник змінив ціну сьогодні', n: C.changed, test: r => r.sch !== 0 },
+  { id: 'below', label: 'Ваша ціна нижча', n: C.below, test: r => r.st === 'below' },
+  { id: 'above', label: 'Ваша ціна вища', n: C.above, test: r => r.st === 'above' },
+  { id: 'nostock', label: 'Немає в наявності ніде', n: C.nostock, test: r => r.nostock && r.mavail },
+  { id: 'myout', label: 'Немає у вас, є в постачальника', n: C.myout, test: r => !r.mavail && r.cells.some(c => c.savail) },
+  { id: 'all', label: 'Усі спільні', n: C.matched, test: () => true },
+].filter(x => x.n || x.id === 'all' || x.id === state.filter);
+
+const COLS = [
+  { id: 'item', label: 'Товар', sort: r => r.mname.toLowerCase() },
+  { id: 'mp', label: 'Ваша ціна', num: true, sort: r => r.mp,
+    cell: r => `<span class="price">${money(r.mp)}</span>`
+      + (r.mch ? `<div class="small">було ${money(r.mp - r.mch)}</div>` : '')
+      + `<div class="small ${r.mavail ? '' : 'out'}">${r.mavail ? 'є в наявності' : 'немає в наявності'}</div>` },
+  ...SUPS.map(sp => ({
+    id: 'sup:' + sp.id, label: sp.label, num: true,
+    sort: r => { const c = cellOf(r, sp.id); return c && c.sp != null ? c.sp : Infinity; },
+    cell: r => supCell(r, sp.id),
+  })),
+  { id: 'diffp', label: 'Різниця з орієнтиром', num: true, sort: r => r.diffp ?? 0,
+    cell: r => r.sp == null ? '' : `<span class="${r.st === 'below' ? 'up' : ''}">${signed(r.diff, 2)} грн</span>`
+      + `<div class="small">${signed(r.diffp)}%</div>` },
+  { id: 'hist', label: `${D.historyDays} днів`, cell: r => spark(r.hist) },
+  { id: 'c30', label: 'Змін за 30 днів', num: true, sort: r => r.c30, cell: r => r.c30 || '' },
+  { id: 'days', label: 'Розбіжність, днів', num: true, sort: r => r.days, cell: r => r.days || '' },
+  { id: 'how', label: 'Зіставлено', sort: r => r.how,
+    cell: r => `<span class="small">${esc(r.how)}${r.how === 'схожа назва' ? ` (${Math.round(r.score)}%)` : ''}</span>` },
+];
+
+function supCell(r, id) {
+  const c = cellOf(r, id);
+  if (!c) return '<span class="nopair">не зіставлено</span>';
+  const best = r.ref === id && r.cells.length > 1 ? '<div class="small best">найдешевший</div>' : '';
+  const change = c.sch
+    ? `<div class="small ${c.sch > 0 ? 'up' : 'down'}">було ${money(c.sp - c.sch)}</div>`
+    : (c.last ? `<div class="small">змін. ${dmy(c.last)}</div>` : '');
+  return `<span class="price">${money(c.sp)}</span>${change}`
+    + `<div class="small ${c.savail ? '' : 'out'}">${c.savail ? 'є' : 'немає'}</div>${best}`;
+}
+
+function spark(pts) {
+  if (!pts || !pts.length) return '';
+  const W = 136, H = 34, P = 3;
+  const t1 = dayNum(D.today), t0 = Math.max(t1 - (D.historyDays - 1), dayNum(pts[0][0]));
+  const vals = pts.flatMap(p => [p[1], p[2]]).filter(v => v != null);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi === lo) { hi += 1; lo -= 1; }
+  const x = t => t1 === t0 ? W - P : P + (Math.max(t, t0) - t0) / (t1 - t0) * (W - 2 * P);
+  const y = v => H - P - (v - lo) / (hi - lo) * (H - 2 * P);
+  const path = i => {
+    let d = '';
+    for (const p of pts) {
+      if (p[i] == null) continue;
+      const xx = x(dayNum(p[0])).toFixed(1), yy = y(p[i]).toFixed(1);
+      d += d ? `H${xx}V${yy}` : `M${xx} ${yy}`;
+    }
+    return d ? d + `H${W - P}` : '';
+  };
+  const sv = pts.map(p => p[2]).filter(v => v != null);
+  const title = `Постачальник: від ${money(Math.min(...sv))} до ${money(Math.max(...sv))} грн`;
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}"><title>${esc(title)}</title>`
+    + `<path d="${path(2)}" fill="none" stroke="var(--ink)" stroke-width="1.6"/>`
+    + `<path d="${path(1)}" fill="none" stroke="var(--leaf)" stroke-width="1.6" stroke-dasharray="3 2"/></svg>`;
+}
+
+function rowHtml(r) {
+  const names = r.cells.map(c => `${esc(supName(c.sup))}: ${link(c.surl, c.sname)}`).join('<br>');
+  const ids = r.cells.map(c => `${esc(supName(c.sup))} ${esc(c.sid)}`).join(', ');
+  const cells = COLS.slice(1).map(c => `<td class="${c.num ? 'num' : ''}">${c.cell(r)}</td>`).join('');
+  return `<tr class="${r.sev}">
+    <td class="item">
+      <div class="mname">${link(r.murl, r.mname)}</div>
+      <div class="sname">${names}</div>
+      ${r.what ? `<div class="what">${esc(r.what)}</div>` : ''}
+      <div class="ids">ваш ID ${esc(r.mid)}${ids ? ', ' + ids : ''}</div>
+    </td>${cells}
+  </tr>`;
+}
+
+function renderTable() {
+  const f = FILTERS.find(x => x.id === state.filter);
+  const q = state.q.trim().toLowerCase();
+  let rows = D.rows.filter(f.test);
+  if (state.onlyAvail) rows = rows.filter(r => r.cells.some(c => c.savail));
+  if (q) rows = rows.filter(r => (r.mname + ' ' + r.mid + ' ' + r.cells.map(c => c.sname + ' ' + c.sid).join(' ')).toLowerCase().includes(q));
+  if (state.sort) {
+    const col = COLS.find(c => c.id === state.sort);
+    rows = rows.slice().sort((a, b) => {
+      const va = col.sort(a), vb = col.sort(b);
+      return (va > vb ? 1 : va < vb ? -1 : 0) * state.dir;
+    });
+  }
+  document.getElementById('thead').innerHTML = COLS.map(c => {
+    const dir = state.sort === c.id ? (state.dir > 0 ? '↑' : '↓') : null;
+    const inner = c.sort ? `<button type="button" data-sort="${c.id}"${dir ? ` data-dir="${dir}"` : ''}>${esc(c.label)}</button>` : esc(c.label);
+    return `<th class="${c.num ? 'num' : ''}">${inner}</th>`;
+  }).join('');
+  document.getElementById('tbody').innerHTML = rows.length
+    ? rows.map(rowHtml).join('')
+    : `<tr><td colspan="${COLS.length}" class="empty">${D.rows.length ? 'За цим фільтром товарів немає.' : 'Спільних товарів поки не знайдено. Перевірте вкладку «Пари на перевірку».'}</td></tr>`;
+  document.getElementById('shown').textContent = `Показано ${rows.length} з ${D.rows.length}`;
+  document.getElementById('filters').innerHTML = FILTERS.map(x =>
+    `<button type="button" class="${x.cls || ''}" data-filter="${x.id}" aria-pressed="${x.id === state.filter}">${esc(x.label)}<b>${x.n}</b></button>`
+  ).join('');
+}
+
+function renderLog() {
+  document.getElementById('logNote').textContent = `Зміни цін за останні ${D.logDays} ${plural(D.logDays, 'день', 'дні', 'днів')}. Повний журнал лежить у data/changes.csv.`;
+  document.getElementById('logBody').innerHTML = D.log.length ? D.log.map(e => {
+    const delta = e.new - e.old;
+    const sup = e.side === 'постачальник';
+    return `<tr class="${sup ? 'red' : ''}">
+      <td>${dmy(e.d)}</td>
+      <td>${sup ? esc(e.supLabel || 'Постачальник') : 'Ви'}</td>
+      <td>${esc(e.name)}<div class="ids">ваш ID ${esc(e.mid)}, у постачальника ${esc(e.sid)}</div></td>
+      <td class="num">${money(e.old)}</td>
+      <td class="num">${money(e.new)}</td>
+      <td class="num ${delta > 0 ? 'up' : 'down'}">${signed(delta, 2)} грн<div class="small">${signed(e.pct)}%</div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty">Змін ще не було. Журнал почне заповнюватись з другого запуску.</td></tr>`;
+}
+
+function renderSugg() {
+  const edit = D.links.edit_sugg
+    ? `<a href="${esc(D.links.edit_sugg)}" target="_blank" rel="noopener">mapping/suggestions.csv</a>`
+    : 'mapping/suggestions.csv';
+  document.getElementById('suggNote').innerHTML =
+    `Ці товари схожі, але скрипт не порівнює їх, доки ви не підтвердите пару. Для кількох пар відкрийте ${edit} і впишіть <strong>так</strong> або <strong>ні</strong> на початку рядка. Для багатьох пар позначте їх тут, скопіюйте і вставте в кінець mapping.csv. Зміни підхопляться під час наступного запуску.`;
+  document.getElementById('suggBody').innerHTML = D.sugg.length ? D.sugg.map((s, i) => `<tr>
+      <td><input type="checkbox" class="pick" data-i="${i}" aria-label="Вибрати пару"></td>
+      <td class="num">${Math.round(s.score)}%</td>
+      <td>${esc(s.supLabel || '')}</td>
+      <td>${link(s.murl, s.mname)}<div class="ids">ID ${esc(s.mid)}</div></td>
+      <td>${link(s.surl, s.sname)}<div class="ids">ID ${esc(s.sid)}</div></td>
+      <td class="num">${money(s.mp)}</td>
+      <td class="num">${money(s.sp)}</td>
+      <td class="small">${esc(s.reason)}</td>
+    </tr>`).join('') : `<tr><td colspan="8" class="empty">Сумнівних пар немає.</td></tr>`;
+}
+
+function picked() { return [...document.querySelectorAll('.pick:checked')].map(c => D.sugg[+c.dataset.i]); }
+
+function syncBulk() {
+  const n = picked().length;
+  document.getElementById('copyYes').disabled = !n;
+  document.getElementById('copyNo').disabled = !n;
+  document.getElementById('copyStatus').textContent = n ? `Вибрано ${n}` : '';
+}
+
+async function copyRules(rule) {
+  const today = dmy(D.today);
+  const text = picked().map(s => `${s.mid},${s.sup},${s.sid},${rule},${rule === 'так' ? 'підтверджено' : 'відхилено'} ${today}`).join('\n');
+  const box = document.getElementById('pasteBox');
+  const where = D.links.edit_map ? ` <a href="${esc(D.links.edit_map)}" target="_blank" rel="noopener">Відкрити mapping.csv</a>` : '';
+  try {
+    await navigator.clipboard.writeText(text + '\n');
+    box.hidden = true;
+    document.getElementById('copyStatus').innerHTML = `Скопійовано. Вставте в кінець mapping.csv і збережіть.${where}`;
+  } catch (e) {
+    box.hidden = false; box.value = text; box.select();
+    document.getElementById('copyStatus').innerHTML = `Скопіюйте рядки з поля нижче у кінець mapping.csv.${where}`;
+  }
+}
+
+function renderViews() {
+  const views = [['table', 'Порівняння'], ['log', `Журнал змін (${D.log.length})`], ['sugg', `Пари на перевірку (${D.sugg.length})`]];
+  document.getElementById('views').innerHTML = views.map(([id, label]) =>
+    `<button type="button" role="tab" data-view="${id}" aria-selected="${state.view === id}">${esc(label)}</button>`).join('');
+  for (const [id] of views) document.getElementById('view-' + id).hidden = state.view !== id;
+  document.getElementById('legend').hidden = state.view !== 'table';
+}
+
+function renderHead() {
+  document.getElementById('brand').textContent = `${D.labels.my} і ${SUPS.map(s => s.label).join(', ')}`;
+  document.getElementById('updated').textContent = `Оновлено ${D.generated}`;
+  const h = document.getElementById('headline');
+  if (!C.matched) {
+    h.textContent = 'Спільних товарів не знайдено';
+  } else if (C.attention) {
+    h.textContent = `${C.attention} ${plural(C.attention, 'товар потребує', 'товари потребують', 'товарів потребують')} уваги`;
+    h.classList.add('alert');
+  } else {
+    h.textContent = 'Жоден товар не потребує уваги';
+  }
+  const phrase = { 'код': 'за кодом', 'назва': 'за назвою', 'схожа назва': 'за схожою назвою', 'вручну': 'вручну', 'ID постачальника': 'за ID постачальника' };
+  const how = Object.entries(D.stats.by_method).map(([k, v]) => `${phrase[k] || k} ${v}`).join(', ');
+  const totals = SUPS.map(sp => `${sp.label} ${(D.stats.sup_totals || {})[sp.id] ?? D.stats.sup_total}`).join(', ');
+  document.getElementById('sub').textContent =
+    `Порівнюю ${C.matched} ${plural(C.matched, 'спільний товар', 'спільні товари', 'спільних товарів')} у ${SUPS.length} ${plural(SUPS.length, 'постачальника', 'постачальників', 'постачальників')}. `
+    + `У вашому фіді ${D.stats.my_total}, у постачальників: ${totals}.` + (how ? ` Зіставлено ${how}.` : '');
+  document.getElementById('warnings').innerHTML = D.warnings.map(w => `<div class="warn">${esc(w)}</div>`).join('');
+  const t = D.thresholds;
+  const band = t.min_markup_pct === 0 && t.max_markup_pct === 0 ? 'дорівнює ціні постачальника' : `на ${t.min_markup_pct}…${t.max_markup_pct}% вища за ціну постачальника`;
+  document.getElementById('legend').innerHTML = `
+    <p><strong>Червоний рядок:</strong> постачальник змінив ціну з минулого запуску, а ваша лишилась такою ж, або ваша ціна нижча за допустиму.</p>
+    <p><strong>Помаранчевий рядок:</strong> ваша ціна вища за допустиму.</p>
+    <p><strong>Допустима ціна:</strong> ${band}, з допуском ${t.tolerance_uah} грн на округлення. Пороги змінюються в config.json.</p>
+    <p><strong>Орієнтир:</strong> ${SUPS.length > 1 ? 'найдешевший постачальник, у якого товар є в наявності' : 'ціна постачальника'}. Різниця і кольори рахуються від нього.</p>
+    <p><span class="key"><svg width="26" height="8"><path d="M0 4H26" stroke="var(--ink)" stroke-width="1.6"/></svg>ціна постачальника</span><span class="key"><svg width="26" height="8"><path d="M0 4H26" stroke="var(--leaf)" stroke-width="1.6" stroke-dasharray="3 2"/></svg>ваша ціна</span></p>
+    <p><strong>Розбіжність, днів:</strong> скільки днів поспіль ваша ціна виходить за межі допустимої.</p>`;
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.filter) { state.filter = b.dataset.filter; renderTable(); }
+  if (b.dataset.view) { state.view = b.dataset.view; renderViews(); }
+  if (b.dataset.sort) {
+    state.dir = state.sort === b.dataset.sort ? -state.dir : 1;
+    state.sort = b.dataset.sort;
+    renderTable();
+  }
+});
+document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; renderTable(); });
+document.getElementById('onlyAvail').addEventListener('change', e => { state.onlyAvail = e.target.checked; renderTable(); });
+document.getElementById('selAll').addEventListener('change', e => {
+  document.querySelectorAll('.pick').forEach(c => { c.checked = e.target.checked; });
+  syncBulk();
+});
+document.getElementById('suggBody').addEventListener('change', e => { if (e.target.classList.contains('pick')) syncBulk(); });
+document.getElementById('copyYes').addEventListener('click', () => copyRules('так'));
+document.getElementById('copyNo').addEventListener('click', () => copyRules('ні'));
+
+renderHead();
+renderViews();
+renderTable();
+renderLog();
+renderSugg();
+</script>
+</body>
+</html>

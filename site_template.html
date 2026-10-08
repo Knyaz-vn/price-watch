@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>__TITLE__</title>
+<style>
+  :root { --ink: #1D2A22; --muted: #5E6D62; --line: #D8DFD5; --paper: #F4F6F2; --panel: #FFFFFF; --red: #B8281C; --leaf: #2E7D4F; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body { font: 16px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+  form { width: 100%; max-width: 360px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 26px 24px 22px; }
+  h1 { font-size: 20px; line-height: 1.3; margin: 0 0 4px; }
+  p.sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  label.field { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+  input[type=password] {
+    width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink);
+  }
+  input[type=password]:focus-visible, button:focus-visible, input[type=checkbox]:focus-visible { outline: 2px solid var(--leaf); outline-offset: 2px; }
+  label.remember { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); margin: 12px 0 18px; cursor: pointer; }
+  button {
+    width: 100%; font: inherit; font-weight: 500; padding: 10px 14px; border: 0; border-radius: 6px;
+    background: var(--ink); color: #fff; cursor: pointer;
+  }
+  button:disabled { opacity: .6; cursor: progress; }
+  .error { color: var(--red); font-size: 14px; min-height: 21px; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <form id="gate" autocomplete="on">
+    <h1>__TITLE__</h1>
+    <p class="sub">Оновлено __UPDATED__</p>
+    <input type="text" name="username" value="price-watch" autocomplete="username" hidden>
+    <label class="field" for="pw">Пароль</label>
+    <input type="password" id="pw" name="password" autocomplete="current-password" required autofocus>
+    <label class="remember"><input type="checkbox" id="remember" checked> Запам'ятати на цьому пристрої</label>
+    <button type="submit" id="go">Відкрити</button>
+    <p class="error" id="err" role="alert"></p>
+    <noscript><p class="error">Для перегляду потрібен JavaScript.</p></noscript>
+  </form>
+</main>
+<script>
+(() => {
+  const P = /*__PAYLOAD__*/null;
+  const KEY = 'price-watch-key:' + P.salt;
+  const err = document.getElementById('err');
+  const btn = document.getElementById('go');
+  const bytes = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const store = {
+    get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } },
+    set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* приватний режим */ } },
+    clear() {
+      try { Object.keys(localStorage).filter(k => k.startsWith('price-watch-key:')).forEach(k => localStorage.removeItem(k)); } catch (e) { /* */ }
+    },
+  };
+
+  if (!window.crypto || !crypto.subtle || typeof DecompressionStream === 'undefined') {
+    err.textContent = 'Браузер застарий для цієї сторінки. Оновіть його або відкрийте в Chrome.';
+    btn.disabled = true;
+    return;
+  }
+
+  async function derive(password) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: bytes(P.salt), iterations: P.iter, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+  }
+
+  const LOGOUT = '<p style="max-width:1240px;margin:0 auto;padding:0 20px 36px;font-size:13px">' +
+    '<a href="#logout" style="color:#5E6D62">Вийти на цьому пристрої</a></p>' +
+    '<script>addEventListener("hashchange",()=>{if(location.hash==="#logout")location.reload()})<\/script>';
+
+  async function unpack(key) {
+    const packed = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(P.iv) }, key, bytes(P.ct));
+    const html = await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    return html.replace('</body>', LOGOUT + '</body>');
+  }
+
+  function render(html) {
+    document.open();
+    document.write(html);
+    document.close();
+  }
+
+  if (location.hash === '#logout') {
+    store.clear();
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  const saved = store.get();
+  if (saved) {
+    btn.disabled = true;
+    crypto.subtle.importKey('raw', bytes(saved), 'AES-GCM', false, ['decrypt'])
+      .then(unpack)
+      .then(render)
+      .catch(() => { store.clear(); btn.disabled = false; });
+  }
+
+  document.getElementById('gate').addEventListener('submit', async e => {
+    e.preventDefault();
+    err.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Відкриваю...';
+    try {
+      const key = await derive(document.getElementById('pw').value);
+      let html;
+      try {
+        html = await unpack(key);
+      } catch (x) {
+        throw new Error('bad-password');
+      }
+      if (document.getElementById('remember').checked) {
+        const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+        store.set(btoa(String.fromCharCode(...raw)));
+      }
+      render(html);
+    } catch (x) {
+      err.textContent = x.message === 'bad-password' ? 'Невірний пароль.' : 'Не вдалося відкрити звіт. Оновіть сторінку.';
+      btn.disabled = false;
+      btn.textContent = 'Відкрити';
+      document.getElementById('pw').select();
+    }
+  });
+})();
+</script>
+</body>
+</html>

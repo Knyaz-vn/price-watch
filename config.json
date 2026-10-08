@@ -1,0 +1,32 @@
+{
+  "my_label": "Садовий Рай",
+  "suppliers": [
+    {
+      "id": "vodospad",
+      "label": "Водоспад",
+      "url": "https://www.vodospad.net.ua/export/prom.xml"
+    },
+    {
+      "id": "plantsclub",
+      "label": "Клуб Рослин",
+      "scraper": "plants_club",
+      "options": {
+        "skip_categories": [],
+        "delay": 0.7,
+        "max_minutes": 40
+      }
+    }
+  ],
+  "tolerance_uah": 1,
+  "min_markup_pct": 0,
+  "max_markup_pct": 0,
+  "code_match_min_name_score": 45,
+  "match_by_supplier_offer_id": true,
+  "fuzzy_auto_accept": 90,
+  "fuzzy_suggest": 72,
+  "report_history_days": 90,
+  "log_days": 60,
+  "telegram_only_if_attention": true,
+  "telegram_attach_dashboard": true,
+  "github_pages": false
+}
